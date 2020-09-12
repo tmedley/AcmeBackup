@@ -1,5 +1,5 @@
 #
-# v0.6 091220
+# v0.7 091220
 # Acme Packet SBC backup script
 # Tim Medley
 # timmedley@maximus.com
@@ -14,10 +14,9 @@ import platform
 import os
 import sys
 import logging
+from datetime import date
 from pathlib import Path
 import getpass
-import csv
-from datetime import date
 from netmiko import ConnectHandler, file_transfer
 import paramiko
 
