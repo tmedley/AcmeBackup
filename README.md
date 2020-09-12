@@ -8,9 +8,8 @@ a new backup file and then download the backup viah SFTP to your local downloads
 
 This was written for a specific set of SBCs that I help manage, When run, the script will prompt for the Admin password for the SBCs, it is assumed that all of the SBCs use the same Admin level password.  If not the script would need to be modified to prompt for a password for each SBC.
 
-The CSV file contains two fields: IP_ADDRESS, HOSTNAME.  The Hostname field is used in the script for part of the file backup file nameing.  We use a naming convention:  
+A TXT file is used to provide a list of SBC IP Addresses, one IP per line.
 
-      XXX           XXX       ACME    BU        DDMMYY              XX                                      CULMGEPACMEBU122520TM
-      Data Center   Project   ACME    Back Up   Day Month Year      Initials of who did the Back Up
-      
 This is a quickly thrown together script, I am sure there are things I can improve on or do more efficiently. I might do those things over time.
+
+I mainly used netmiko for the SSH and command parsing, it's overkill but makes this really easy. I ran into issues using SCP in netmiko for the file transfer. The Acme SBCs seem like they support SCP, but I could not get it to connect, so I ended up adding paramiko since it handles SFTP easily.

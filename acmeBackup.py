@@ -33,10 +33,11 @@ logging.basicConfig(
 platformType = platform.system()
 
 # set some variables
-dateToday = date.today().strftime("%m%d%y").replace('-','')
+dateToday = date.today().strftime("%m%d%Y").replace('-','')
 homePath = str(Path.home() / "Downloads") + "/"
+sbcBackupPath = "/code/bkups/"
+# clientBackupPath = homePath
 
-# display a text welcome message and prompt for the SBC user Password
 welcomeMsg = """
 ########################################
 
@@ -51,41 +52,36 @@ generate a backup and then download that
 backup file.
 """
 
-print(welcomeMsg)
-sbcUsername = "admin"
-sbcPassword = getpass.getpass("Enter the SBC admin account password: ")
+# display a text welcome message and prompt for the SBC ADMIN Password
+# we are assuming all the SBCs use the same password.
+try:
+    print(welcomeMsg)
+    sbcUsername = "admin"
+    sbcPassword = getpass.getpass("Enter the SBC ADMIN account password: ")
+except Exception as error:
+    print("There was an error accepting your password", error)
+else:
+    print("Thank you")
 
 
-# read sbc ip addresses and name from file sbc_ip_address.csv
-with open("sbc_ip_addresses.csv") as csvfile:
-    readCSV = csv.reader(csvfile, delimiter=',')
-    ipAddressList = []
-    deviceNameList = []
-    for row in readCSV:
-        ipAddress = row[0]
-        deviceName = row[1]
-
-        ipAddressList.append(ipAddress)
-        deviceNameList.append(deviceName)
-
+# read a list of SBC IP Addresses to backup from sbc.txt
+sbcIPAddressFile = open("sbc.txt")
+sbcIPAddressList = sbcIPAddressFile.read().splitlines()
 
 
 
 # create a file name for the backup file on the sbc
-backupFileName = deviceName + "ACMEBU" + dateToday + "Tool"
-backupFileNameExt = backupFileName + ".gz"
-sbcBackupFullPath = "/code/bkups/" + backupFileNameExt
-clientBackupFullPath = homePath + backupFileNameExt
+# backupFileName = deviceName + "ACMEBU" + dateToday + "Tool"
+
 
 # define our blank connect profile
-acmeSBC = {}
+#acmeSBC = {}
 
 ####### Loop Should Start Here   #######
 
-numberOfSBCs = len(ipAddressList)
-i = 0
 
-while i < numberOfSBCs:
+
+for ipAddress in sbcIPAddressList:
 
     # populate the netmiko connect profile
     acmeSBC = {
@@ -100,34 +96,48 @@ while i < numberOfSBCs:
         net_connect = ConnectHandler(**acmeSBC)
         net_connect.enable()
 
-        print(net_connect.find_prompt())
+        #print(net_connect.find_prompt())
+
+        # setup our backups file name
+
+        # we are using the SBCs prompt as the basis for our file naming scheme
+        # however we need to strip the -, the trailing 01
+        # and the # from the enable prompt
+        # we then add BU for backup, the date in DDMMYYYY and the engineers
+        # initials, in this case PY for python :)
+        # final name should be something like CULACME6300BU12252020PY
+        sbcDeviceName = net_connect.find_prompt().replace("-","")[:-3]
+        backupFileName = sbcDeviceName + "BU" + dateToday + "PY"
+
+        print("\nSSH Connection to: " + ipAddress + " " + sbcDeviceName)
+        print(sbcBackupPath + backupFileName)
+
         # tell the sbc to generate a new backup file
         # filename format is: DC SBC_Name ACME BU DATE USER
 
         acmeBackupCommand = net_connect.send_command("backup-config " + backupFileName + " running")
-        output = net_connect.send_command("display-backups")
+        #sbcCommandOutput = net_connect.send_command("display-backups")
     except:
         print("\nFailed to connect to: " + str(ipAddress))
         net_connect.disconnect()
         sys.exit(1)
 
 
+### shouldn't I add this into the above try/except?
+# or do else: and the next part?
 
-        # get backup file via netmiko scp (didnt seems to work)
-        # transferDir = "get"
-
-        # transferBackup = file_transfer(
-        # net_connect,
-        # source_file=sbcBackupFullPath,
-        # dest_file=backupFileNameExt,
-        # direction=transferDir,
-        # file_system=homePath,
-        # )
-
-        # get backup file via SFTP
-        # privatekeyfile = os.path.expanduser('~/.ssh')
-        # myKey = paramiko.RSAKey.from_private_key_file(privatekeyfile)
     try:
+        # setup the file paths
+        # we need to add the .gz file extension in our get command, the sbc
+        # added it automatically when it did the backup
+        backupFileNameExt = backupFileName + ".gz"
+        sbcBackupFullPath = sbcBackupPath + backupFileNameExt
+        clientBackupFullPath = homePath + backupFileNameExt
+
+        print("\nSFTP Connection to: " + ipAddress)
+        print("SBC Path: " + sbcBackupFullPath + " Local Client Path: " + clientBackupFullPath)
+
+        # conect and thy
         transportClient = paramiko.Transport(ipAddress)
         transportClient.connect(username = sbcUsername, password = sbcPassword)
         sftpClient = paramiko.SFTPClient.from_transport(transportClient)
@@ -139,7 +149,6 @@ while i < numberOfSBCs:
         transportClient.close()
         sys.exit(1)
 
-    i += 1
 
 ####### Loop Should End Here   #######
 
@@ -149,9 +158,8 @@ logging.info("Variable data:")
 logging.info(dateToday)
 logging.info(platformType)
 logging.info(homePath)
-logging.info(backupFileName)
-logging.info(ipAddressList)
-logging.info(deviceNameList)
+logging.info(backupFileNameExt)
+logging.info(sbcIPAddressList)
 
 # disconnect the sessions
 net_connect.disconnect()
