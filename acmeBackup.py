@@ -1,15 +1,15 @@
 #
-# v0.1 091020
-# Acme SBC backup script
+# v0.6 091220
+# Acme Packet SBC backup script
 # Tim Medley
 # timmedley@maximus.com
 #
 # Read a list of SBCs from a list
-# Connect to each SBC and issue the backup-configuration command
-# Download the current backup from each SBC via SCP
+# Connect to each SBC via SSH and issue the backup-configuration command
+# Download the current backup from each SBC via SFTP
 #
 
-# import modules
+# import all the modules
 import platform
 import os
 import sys
@@ -22,21 +22,21 @@ from netmiko import ConnectHandler, file_transfer
 import paramiko
 
 
-# setup logging
+### setup some logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(message)s",
     filename="acmeBackup.log"
     )
 
-# check what OS we are running on
+### check what OS we are running on
+# we might not need this. I was thinking we might need to adjust the homPath based on OS???
 platformType = platform.system()
 
-# set some variables
+### set up some variables
 dateToday = date.today().strftime("%m%d%Y").replace('-','')
 homePath = str(Path.home() / "Downloads") + "/"
 sbcBackupPath = "/code/bkups/"
-# clientBackupPath = homePath
 
 welcomeMsg = """
 ########################################
@@ -52,7 +52,13 @@ generate a backup and then download that
 backup file.
 """
 
-# display a text welcome message and prompt for the SBC ADMIN Password
+
+### read a list of SBC IP Addresses to backup from sbc.txt
+sbcIPAddressFile = open("sbc.txt")
+sbcIPAddressList = sbcIPAddressFile.read().splitlines()
+
+
+### display a text welcome message and prompt for the SBC ADMIN Password
 # we are assuming all the SBCs use the same password.
 try:
     print(welcomeMsg)
@@ -64,23 +70,9 @@ else:
     print("Thank you")
 
 
-# read a list of SBC IP Addresses to backup from sbc.txt
-sbcIPAddressFile = open("sbc.txt")
-sbcIPAddressList = sbcIPAddressFile.read().splitlines()
 
-
-
-# create a file name for the backup file on the sbc
-# backupFileName = deviceName + "ACMEBU" + dateToday + "Tool"
-
-
-# define our blank connect profile
-#acmeSBC = {}
-
-####### Loop Should Start Here   #######
-
-
-
+### here we are going to loop through the ipAddresses in our file
+# and do all the things
 for ipAddress in sbcIPAddressList:
 
     # populate the netmiko connect profile
@@ -150,10 +142,8 @@ for ipAddress in sbcIPAddressList:
         sys.exit(1)
 
 
-####### Loop Should End Here   #######
-
-
-# print the output of the commands to the acmeBackup.log file
+### our loop ends and we can do some cleanup if its not already done
+# print some handy dandy info to the log file, probably not needed
 logging.info("Variable data:")
 logging.info(dateToday)
 logging.info(platformType)
@@ -161,11 +151,12 @@ logging.info(homePath)
 logging.info(backupFileNameExt)
 logging.info(sbcIPAddressList)
 
-# disconnect the sessions
+### disconnect the sessions, it was done in the loop, so this is just in case
+# something goes haywire in the loop... probably not needed
 net_connect.disconnect()
 sftpClient.close()
 transportClient.close()
 
-# and we're done. print a note saying so and remind where the backups are locally
+### and we're done. print a note saying so and remind us where the backups were downloaded
 print("\nThe backups have been completed. Find them in your downloads directory: " + str(homePath))
 print("\nAll sessions have been closed. Have a nice day!\n\n\a")
