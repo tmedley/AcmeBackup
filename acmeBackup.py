@@ -1,5 +1,7 @@
+#! /usr/bin/env python3
 #
-# v0.8 091320
+# v0.9
+# 091320
 # Acme Packet SBC backup script
 # Tim Medley
 # timmedley@maximus.com
@@ -9,7 +11,7 @@
 # Download the current backup from each SBC via SFTP
 #
 
-# import all the modules
+### import all the modules
 import platform
 import os
 import sys
@@ -41,7 +43,7 @@ dateToday = date.today().strftime("%m%d%Y").replace('-','')
 homePath = str(Path.cwd() / "sbc-backups") + "/"
 #set the directory on the SBC where the backup files are stored
 sbcBackupPath = "/code/bkups/"
-
+sbcBackupDownloaded = 0
 
 welcomeMsg = """
 ########################################
@@ -68,8 +70,7 @@ try:
 except Exception as error:
     print("There was an error accepting your password", error)
 else:
-    print("\n\nPassword Accepted. All your bases are belong to us\n\n")
-
+    print("\n\nPassword Accepted. All your bases are belong to us.\n\n")
 
 ### read a list of SBC IP Addresses to backup from sbc.txt
 # stuff each line nicely into a list
@@ -112,11 +113,16 @@ for sbcIPAddress in sbcIPAddressList:
         # filename format is: DC SBC_Name ACME BU DATE USER
 
         acmeBackupCommand = net_connect.send_command("backup-config " + sbcBackupFileName + " running")
-    except:
-        print("\nFailed to connect to: " + sbcIPAddress)
-        net_connect.disconnect()
-        sys.exit(1)
-
+    except paramiko.ssh_exception.AuthenticationException as error:
+        print("\nAuthentication Error trying to connect to:\033[1;31m " + sbcIPAddress + "\033[0;0m\n\n")
+        continue
+    except paramiko.ssh_exception.SSHException as error:
+        print("\nSSH Error trying to connect to:\033[1;31m " + sbcIPAddress + "\033[0;0m\n\n")
+        continue
+    except Exception as error:
+        print("\nFailed to connect to:\033[1;31m " + sbcIPAddress + "\033[0;0m someone probably fed the Gremlins after midnight, again")
+        #sys.exit(1)
+        continue
 
 ### shouldn't I add this into the above try/except?
 # or do else: and the next part?
@@ -128,7 +134,6 @@ for sbcIPAddress in sbcIPAddressList:
         sbcBackupFileNameExt = sbcBackupFileName + ".gz"
         sbcBackupFullPath = sbcBackupPath + sbcBackupFileNameExt
         clientBackupFullPath = homePath + sbcBackupFileNameExt
-
         ### conect the transport
         # we have an established SSH connection from netmiko, could we use
         # that instead of a new transport?
@@ -138,15 +143,10 @@ for sbcIPAddress in sbcIPAddressList:
         sftpClient.get(sbcBackupFullPath, clientBackupFullPath)
 
     except:
-        print("\nFailed to connect to: ", sbcIPAddress)
-        net_connect.disconnect()
-        sftpClient.close()
-        transportClient.close()
-        sys.exit(1)
+        print("\nFailed to connect to:\033[1;31m ", sbcIPAddress + "\033[0;0m")
+        continue
     else:
-        sftpClient.close()
-        transportClient.close()
-        net_connect.disconnect()
+        sbcBackupDownloaded += 1
 
 
 ### our loop ends and we can do some cleanup if its not already done
@@ -165,6 +165,6 @@ transportClient.close()
 
 ### and we're done. print a note saying so and remind us where the backups were downloaded
 os.system("clear")
-print("\n\n\nThe backups have been completed for " + str(numberOfSBC) + " devices.")
+print("\n\n\nThe backups have been completed for \033[1;32m" + str(sbcBackupDownloaded) + "\033[0;0m devices.")
 print("You will find them here: ", homePath)
 print("\nAll sessions have been closed. Have a nice day!\n\n\a")
