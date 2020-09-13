@@ -22,7 +22,6 @@ import getpass
 from netmiko import ConnectHandler, file_transfer
 import paramiko
 
-
 ### setup some logging
 logging.basicConfig(
     level=logging.INFO,
