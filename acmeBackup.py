@@ -39,7 +39,7 @@ platformType = platform.system()
 
 ### set up some variables
 # get our date string ready
-dateToday = date.today().strftime("%m%d%Y").replace('-','')
+dateToday = date.today().strftime("%m%d%y").replace('-','')
 # set out homePath to save the backups locally
 #homePath = str(Path.home() / "Downloads") + "/"
 homePath = str(Path.cwd() / "sbc-backups") + "/"
@@ -104,9 +104,9 @@ for sbcIPAddress in sbcIPAddressList:
         # we are using the SBCs prompt as the basis for our file naming scheme
         # however we need to strip the -, the trailing 01
         # and the # from the enable prompt
-        # we then add BU for backup, the date in DDMMYYYY and the engineers
+        # we then add BU for backup, the date in DDMMYY and the engineers
         # initials, in this case PY for python :)
-        # final name should be something like CULACME6300BU12252020PY
+        # final name should be something like CULACME6300BU122520PY
         sbcDeviceName = net_connect.find_prompt().replace("-","")[:-3]
         sbcBackupFileName = sbcDeviceName + "BU" + dateToday + "PY"
 
