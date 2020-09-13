@@ -65,7 +65,6 @@ backup file.
 # we are assuming all the SBCs use the same password, if they don't we're in
 # trouble and will have to change that later.
 try:
-    os.system("clear")
     print(welcomeMsg)
     sbcUsername = "admin"
     sbcPassword = getpass.getpass("Enter the SBC ADMIN account password: ")
@@ -166,7 +165,6 @@ sftpClient.close()
 transportClient.close()
 
 ### and we're done. print a note saying so and remind us where the backups were downloaded
-os.system("clear")
 print("\n\n\nThe backups have been completed for \033[1;32m" + str(sbcBackupDownloaded) + "\033[0;0m devices.")
 print("You will find them here: ", homePath)
 print("\nAll sessions have been closed. Have a nice day!\n\n\a")
