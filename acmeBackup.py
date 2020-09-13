@@ -23,6 +23,9 @@ from netmiko import ConnectHandler, file_transfer
 import paramiko
 
 ### setup some logging
+# create the logs and sbc-backups folders if they don't already exist
+os.makedirs("logs", exist_ok=True)
+os.makedirs("sbc-backups", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(message)s",
