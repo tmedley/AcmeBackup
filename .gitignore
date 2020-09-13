@@ -1,0 +1,4 @@
+# acmeBackup .gitignore
+.DS_Store
+logs/*.log
+sbc-backups/*.gz

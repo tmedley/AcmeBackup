@@ -17,8 +17,6 @@ import logging
 from datetime import date
 from pathlib import Path
 import getpass
-from time import sleep
-from progress.bar import Bar
 from netmiko import ConnectHandler, file_transfer
 import paramiko
 
@@ -27,9 +25,9 @@ import paramiko
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(message)s",
-    filename="acmeBackup.log"
+    filename="logs/acmeBackup.log"
     )
-paramiko.util.log_to_file("paramiko.log")
+paramiko.util.log_to_file("logs/paramiko.log")
 
 ### check what OS we are running on
 # we might not need this. I was thinking we might need to adjust the homPath based on OS???
@@ -87,73 +85,68 @@ with open("sbc.txt", "r") as sbcIPAddressFile:
 # and do all the things
 for sbcIPAddress in sbcIPAddressList:
 
-    #with Bar('Processing...') as bar:
-    #    for i in range(3):
-    #        sleep(0.002)
-    #        bar.next()
+    # populate the netmiko connect profile
+    acmeSBC = {
+        "device_type" : "linux",
+        "ip" : sbcIPAddress,
+        "username" : sbcUsername,
+        "password" : sbcPassword,
+    }
 
-            # populate the netmiko connect profile
-            acmeSBC = {
-                "device_type" : "linux",
-                "ip" : sbcIPAddress,
-                "username" : sbcUsername,
-                "password" : sbcPassword,
-            }
+    # Connect to a SBC
+    try:
+        net_connect = ConnectHandler(**acmeSBC)
+        net_connect.enable()
 
-            # Connect to a SBC
-            try:
-                net_connect = ConnectHandler(**acmeSBC)
-                net_connect.enable()
+        ### setup our backups file name
+        # we are using the SBCs prompt as the basis for our file naming scheme
+        # however we need to strip the -, the trailing 01
+        # and the # from the enable prompt
+        # we then add BU for backup, the date in DDMMYYYY and the engineers
+        # initials, in this case PY for python :)
+        # final name should be something like CULACME6300BU12252020PY
+        sbcDeviceName = net_connect.find_prompt().replace("-","")[:-3]
+        sbcBackupFileName = sbcDeviceName + "BU" + dateToday + "PY"
 
-                ### setup our backups file name
-                # we are using the SBCs prompt as the basis for our file naming scheme
-                # however we need to strip the -, the trailing 01
-                # and the # from the enable prompt
-                # we then add BU for backup, the date in DDMMYYYY and the engineers
-                # initials, in this case PY for python :)
-                # final name should be something like CULACME6300BU12252020PY
-                sbcDeviceName = net_connect.find_prompt().replace("-","")[:-3]
-                sbcBackupFileName = sbcDeviceName + "BU" + dateToday + "PY"
+        # tell the sbc to generate a new backup file
+        # filename format is: DC SBC_Name ACME BU DATE USER
 
-                # tell the sbc to generate a new backup file
-                # filename format is: DC SBC_Name ACME BU DATE USER
-
-                acmeBackupCommand = net_connect.send_command("backup-config " + sbcBackupFileName + " running")
-            except:
-                print("\nFailed to connect to: " + sbcIPAddress)
-                net_connect.disconnect()
-                sys.exit(1)
+        acmeBackupCommand = net_connect.send_command("backup-config " + sbcBackupFileName + " running")
+    except:
+        print("\nFailed to connect to: " + sbcIPAddress)
+        net_connect.disconnect()
+        sys.exit(1)
 
 
-        ### shouldn't I add this into the above try/except?
-        # or do else: and the next part?
+### shouldn't I add this into the above try/except?
+# or do else: and the next part?
 
-            try:
-                ### setup the file paths
-                # we need to add the .gz file extension in our get command, the sbc
-                # added it automatically when it did the backup
-                sbcBackupFileNameExt = sbcBackupFileName + ".gz"
-                sbcBackupFullPath = sbcBackupPath + sbcBackupFileNameExt
-                clientBackupFullPath = homePath + sbcBackupFileNameExt
+    try:
+        ### setup the file paths
+        # we need to add the .gz file extension in our get command, the sbc
+        # added it automatically when it did the backup
+        sbcBackupFileNameExt = sbcBackupFileName + ".gz"
+        sbcBackupFullPath = sbcBackupPath + sbcBackupFileNameExt
+        clientBackupFullPath = homePath + sbcBackupFileNameExt
 
-                ### conect the transport
-                # we have an established SSH connection from netmiko, could we use
-                # that instead of a new transport?
-                transportClient = paramiko.Transport(sbcIPAddress)
-                transportClient.connect(username = sbcUsername, password = sbcPassword)
-                sftpClient = paramiko.SFTPClient.from_transport(transportClient)
-                sftpClient.get(sbcBackupFullPath, clientBackupFullPath)
+        ### conect the transport
+        # we have an established SSH connection from netmiko, could we use
+        # that instead of a new transport?
+        transportClient = paramiko.Transport(sbcIPAddress)
+        transportClient.connect(username = sbcUsername, password = sbcPassword)
+        sftpClient = paramiko.SFTPClient.from_transport(transportClient)
+        sftpClient.get(sbcBackupFullPath, clientBackupFullPath)
 
-            except:
-                print("\nFailed to connect to: ", sbcIPAddress)
-                net_connect.disconnect()
-                sftpClient.close()
-                transportClient.close()
-                sys.exit(1)
-            else:
-                sftpClient.close()
-                transportClient.close()
-                net_connect.disconnect()
+    except:
+        print("\nFailed to connect to: ", sbcIPAddress)
+        net_connect.disconnect()
+        sftpClient.close()
+        transportClient.close()
+        sys.exit(1)
+    else:
+        sftpClient.close()
+        transportClient.close()
+        net_connect.disconnect()
 
 
 ### our loop ends and we can do some cleanup if its not already done
